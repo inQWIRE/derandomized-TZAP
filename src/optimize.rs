@@ -18,6 +18,9 @@ use crate::circuit::{Circuit, Gate, GateKind, GateSet, qubit_operands};
 use crate::cnot_min::CnotMin;
 use crate::decompose::{DecomposeCz, DecomposeRz, DecomposeToffoli};
 use crate::pass::Pass;
+use crate::phase_fold_det::{PhaseFoldDet, ResetPolicy};
+use crate::phase_fold_frame::PhaseFoldFrame;
+use crate::phase_fold_global_expr::PhaseFoldGlobalExpr;
 use crate::phase_fold_rand::PhaseFoldRand;
 #[cfg(test)]
 use crate::super_opt::OPTIONAL_GATE_KINDS;
@@ -103,6 +106,10 @@ pub enum PassName {
     CancelGates,
     SuperOpt,
     PhaseFoldRand,
+    PhaseFoldGlobalExpr,
+    PhaseFoldDet,
+    PhaseFoldDetLower,
+    PhaseFoldFrame,
     CnotMin,
 }
 
@@ -133,7 +140,7 @@ impl StageKind {
 impl PassName {
     /// All passes — `(name, variant, description)` — in a stable order
     /// suitable for listing to a user.
-    pub const ALL: [(&'static str, PassName, &'static str); 7] = [
+    pub const ALL: [(&'static str, PassName, &'static str); 11] = [
         (
             "DecomposeToffoli",
             PassName::DecomposeToffoli,
@@ -163,6 +170,26 @@ impl PassName {
             "PhaseFoldRand",
             PassName::PhaseFoldRand,
             "Merge T/Rz rotations via randomized parity tracking",
+        ),
+        (
+            "PhaseFoldGlobalExpr",
+            PassName::PhaseFoldGlobalExpr,
+            "Merge T/Rz rotations via symbolic parity expressions",
+        ),
+        (
+            "PhaseFoldDet",
+            PassName::PhaseFoldDet,
+            "Merge T/Rz rotations via deterministic generation-stamped parities",
+        ),
+        (
+            "PhaseFoldDetLower",
+            PassName::PhaseFoldDetLower,
+            "PhaseFoldDet, forgetting the lower-generation CNOT operand",
+        ),
+        (
+            "PhaseFoldFrame",
+            PassName::PhaseFoldFrame,
+            "Merge T/Rz rotations exactly via fixed-width frames with dual-vector eviction",
         ),
         (
             "CnotMin",
@@ -312,6 +339,9 @@ pub struct Options {
     pub decompose_ccx: bool,
     /// Approximation epsilon for `decompose_rz`.
     pub rz_epsilon: f64,
+    /// Use the symbolic phase-folding pass instead of the randomized one.
+    /// Only consulted under [`Level::O1`].
+    pub expr: bool,
     /// Optimize gate-contiguous chunks of the circuit in parallel, then
     /// concatenate the results (see [`optimize`]).
     pub parallel: bool,
@@ -331,6 +361,7 @@ impl Default for Options {
             decompose_cz: false,
             decompose_ccx: false,
             rz_epsilon: DEFAULT_RZ_EPSILON,
+            expr: false,
             parallel: false,
             superopt: SuperOptBounds::default(),
             superopt_gates: SuperOptGates::Auto,
@@ -909,6 +940,14 @@ fn run_explicit_pass(
         }),
         PassName::CancelGates => map_pass!(CancelGates),
         PassName::PhaseFoldRand => map_pass!(PhaseFoldRand),
+        PassName::PhaseFoldGlobalExpr => map_pass!(PhaseFoldGlobalExpr),
+        PassName::PhaseFoldDet => map_pass!(PhaseFoldDet {
+            policy: ResetPolicy::ForgetTarget,
+        }),
+        PassName::PhaseFoldDetLower => map_pass!(PhaseFoldDet {
+            policy: ResetPolicy::ForgetLower,
+        }),
+        PassName::PhaseFoldFrame => map_pass!(PhaseFoldFrame),
         PassName::CnotMin => map_pass!(CnotMin::default()),
         PassName::SuperOpt => {
             let basis = options.superopt_gates.effective(circuit.gate_set());
@@ -1018,6 +1057,7 @@ fn optimize_default(
 ) -> Result<Circuit, Error> {
     let cancel_pass = CancelGates;
     let global = PhaseFoldRand;
+    let global_expr = PhaseFoldGlobalExpr;
     let cnot_min_pass = CnotMin::default();
 
     if level_uses_superopt(options.level) {
@@ -1040,7 +1080,12 @@ fn optimize_default(
             circuit, &passes, None, observer, max_rounds,
         ))
     } else {
-        let optimization_passes: Vec<&dyn Pass> = vec![&cancel_pass, &global];
+        let phase_fold: &dyn Pass = if options.expr {
+            &global_expr
+        } else {
+            &global
+        };
+        let optimization_passes: Vec<&dyn Pass> = vec![&cancel_pass, phase_fold];
         Ok(if options.fixpoint {
             run_to_fixpoint(circuit, &optimization_passes, None, observer, None)
         } else {

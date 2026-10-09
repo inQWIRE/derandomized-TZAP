@@ -145,6 +145,10 @@ def test_passes_accept_a_one_shot_generator():
         "CancelGates",
         "SuperOpt",
         "PhaseFoldRand",
+        "PhaseFoldGlobalExpr",
+        "PhaseFoldDet",
+        "PhaseFoldDetLower",
+        "PhaseFoldFrame",
         "CnotMin",
     ],
 )
@@ -215,6 +219,15 @@ def test_decompose_rz_removes_all_rz_gates():
     assert result.report.input.rz == 1
     assert result.report.output.rz == 0
     assert "rz(" not in result.qasm
+
+
+def test_expr_phase_folding_path():
+    circuit = make_qasm("t q[0]; t q[0];")
+
+    result = tzap.optimize_qasm(circuit, level="O1", expr=True)
+
+    assert result.report.output.gates == 1
+    assert "s q[0]" in result.qasm
 
 
 def test_custom_pipeline_fixpoint_is_accepted():
@@ -325,7 +338,9 @@ def test_unknown_pass_lists_available_passes():
         tzap.optimize_qasm(QASM, passes=["NotAPass"])
 
 
-@pytest.mark.parametrize("option", ["decompose_rz", "decompose_cz", "decompose_ccx"])
+@pytest.mark.parametrize(
+    "option", ["decompose_rz", "decompose_cz", "decompose_ccx", "expr"]
+)
 def test_explicit_passes_reject_conflicting_options(option):
     with pytest.raises(ValueError, match="passes cannot be combined"):
         tzap.optimize_qasm(QASM, passes=["CancelGates"], **{option: True})

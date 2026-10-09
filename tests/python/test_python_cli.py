@@ -164,6 +164,7 @@ def test_main_forwards_every_optimizer_flag(monkeypatch, tmp_path):
             "base",
             "--epsilon",
             "0.001",
+            "--expr",
             "--parallel",
         ]
     )
@@ -180,6 +181,7 @@ def test_main_forwards_every_optimizer_flag(monkeypatch, tmp_path):
             "decompose_ccx": True,
             "superopt_gates": "base",
             "rz_epsilon": 0.001,
+            "expr": True,
             "parallel": True,
         },
     }

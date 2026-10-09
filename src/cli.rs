@@ -199,6 +199,7 @@ pub(crate) fn parse_args(args: &[String]) -> Opts {
     let mut parallel: Option<bool> = None;
     let mut passes: Option<Vec<PassName>> = None;
     let mut fixpoint = false;
+    let mut expr = false;
     let mut optimization_level = None;
     let mut superopt_qubits: Option<usize> = None;
     let mut superopt_window_gates: Option<usize> = None;
@@ -267,6 +268,7 @@ pub(crate) fn parse_args(args: &[String]) -> Opts {
             "--parallel" => parallel = Some(true),
             "--no-parallel" => parallel = Some(false),
             "--fixpoint" => fixpoint = true,
+            "--expr" => expr = true,
             "-q" | "--quiet" => quiet = true,
             "--json" => json = true,
             "--cache-dir" => {
@@ -399,7 +401,7 @@ pub(crate) fn parse_args(args: &[String]) -> Opts {
             "missing required <input.qasm> argument\n\n  \
              Usage: tzap <input.qasm> [-o output.qasm] [-O1|-O2|-O3|-Osuper] \
              [--decompose-ccx] [--decompose-cz] [--decompose-rz] [--passes <list>] \
-             [--parallel|--no-parallel] [--fixpoint]\n  \
+             [--parallel|--no-parallel] [--fixpoint] [--expr]\n  \
              Pass - to read the circuit from stdin.\n  \
              Run `tzap --help` for the full option list.",
         );
@@ -412,6 +414,12 @@ pub(crate) fn parse_args(args: &[String]) -> Opts {
         arg_error(
             "--passes cannot be combined with --decompose-rz, --decompose-cz, or --decompose-ccx \
              — list the corresponding decomposition passes instead",
+        );
+    }
+    if passes.is_some() && expr {
+        arg_error(
+            "--passes cannot be combined with --expr \
+             — list PhaseFoldGlobalExpr as a pass name instead",
         );
     }
     // Two writers, one stream: whichever won, the other's output would be
@@ -439,6 +447,7 @@ pub(crate) fn parse_args(args: &[String]) -> Opts {
                 decompose_cz,
                 decompose_ccx,
                 rz_epsilon,
+                expr,
                 // Only what was asked for outright; [`Run::resolve_parallel`]
                 // settles the rest once the circuit's size is known.
                 parallel: parallel == Some(true),
@@ -521,6 +530,9 @@ fn print_help(ui: &Ui) {
     out.push_str("                     --epsilon still configures DecomposeRz.\n");
     out.push_str(&format!(
         "    {bold}--fixpoint{reset}       Repeat the pipeline until gate count stops decreasing\n"
+    ));
+    out.push_str(&format!(
+        "    {bold}--expr{reset}           Use symbolic phase folding (PhaseFoldGlobalExpr) under -O1\n"
     ));
     out.push_str(&format!(
         "    {bold}-O1{reset}              Fastest: phase folding + gate cancellation only\n"

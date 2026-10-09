@@ -29,6 +29,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--decompose-ccx", action="store_true")
     parser.add_argument("--superopt-gates", default="auto")
     parser.add_argument("--epsilon", type=float, default=1e-10)
+    parser.add_argument("--expr", action="store_true")
     parser.add_argument("--parallel", action="store_true")
     parser.add_argument(
         "-v", "--version", action="version", version="tzap " + __version__
@@ -55,6 +56,7 @@ def main(argv: list[str] | None = None) -> int:
             decompose_ccx=args.decompose_ccx,
             superopt_gates=args.superopt_gates,
             rz_epsilon=args.epsilon,
+            expr=args.expr,
             parallel=args.parallel,
         )
         if output:

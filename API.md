@@ -95,6 +95,7 @@ CCX/CCZ, CZ, or Rz decomposition.
 | `decompose_cz` | `false` | Decompose CZ into H+CX+H before optimizing |
 | `decompose_ccx` | `false` | Decompose CCX and CCZ into Clifford+T |
 | `rz_epsilon` | `1e-10` | Approximation epsilon for `decompose_rz` |
+| `expr` | `false` | Use the symbolic phase-folding pass (`PhaseFoldGlobalExpr`). Only consulted under `O1` |
 | `parallel` | `false` | Optimize gate-contiguous chunks concurrently, then concatenate |
 | `superopt` | all `None` | Per-run overrides for the SuperOpt window/MURM bounds |
 | `superopt_gates` | `Auto` | Base MURM basis plus native CZ/CCX/CCZ gates present in the current stage |
@@ -167,6 +168,9 @@ A custom pass only needs to supply `name` and `run`.
 | `CancelGates` | `tzap::cancel` | Removes adjacent self-inverse gate pairs (HH, XX, etc.) |
 | `SuperOpt` | `tzap::super_opt` | Replaces small windows using its shared MURM |
 | `PhaseFoldRand` | `tzap::phase_fold_rand` | Merges T/Rz gates across the circuit via randomized parity tracking |
+| `PhaseFoldGlobalExpr` | `tzap::phase_fold_global_expr` | Merges T/Rz gates via symbolic parity expressions |
+| `PhaseFoldDet` | `tzap::phase_fold_det` | Merges T/Rz gates via deterministic generation-stamped parity bit vectors (`ResetPolicy` selects which CNOT operand is forgotten on a generation mismatch; `PhaseFoldDetLower` is the `ForgetLower` policy) |
+| `PhaseFoldFrame` | `tzap::phase_fold_frame` | Exact deterministic phase folding: fixed-width coordinate vectors, with dead phase-table keys evicted lazily via dual vectors |
 | `CnotMin` | `tzap::cnot_min` | Re-synthesizes CNOT-dihedral blocks to cut two-qubit gates |
 
 ### Running passes

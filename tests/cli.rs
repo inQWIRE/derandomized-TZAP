@@ -889,6 +889,18 @@ fn passes_conflicts_with_decompose_rz() {
 }
 
 #[test]
+fn passes_conflicts_with_expr() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("in.qasm");
+    fs::write(&input, HHTT_QASM).unwrap();
+
+    let out = tzap_run(&[input.to_str().unwrap(), "--passes", "CancelGates", "--expr"]);
+    assert!(!out.status.success(), "should reject --passes with --expr");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("cannot be combined"), "got: {stderr}");
+}
+
+#[test]
 fn passes_conflicts_with_decompose_cz() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("in.qasm");
@@ -1100,13 +1112,17 @@ fn optimization_levels_are_mutually_exclusive() {
 // --- pass and mode combinations ---
 
 /// Every pass selectable via `--passes`, in default pipeline order.
-const ALL_PASS_NAMES: [&str; 7] = [
+const ALL_PASS_NAMES: [&str; 11] = [
     "DecomposeToffoli",
     "DecomposeCz",
     "DecomposeRz",
     "CancelGates",
     "SuperOpt",
     "PhaseFoldRand",
+    "PhaseFoldGlobalExpr",
+    "PhaseFoldDet",
+    "PhaseFoldDetLower",
+    "PhaseFoldFrame",
     "CnotMin",
 ];
 
@@ -1324,6 +1340,16 @@ fn default_pipeline_with_fixpoint() {
 
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("Converged after"), "got: {stderr}");
+    read_valid_qasm(&output);
+}
+
+#[test]
+fn expr_phase_folding_pipeline() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("out.qasm");
+
+    let out = tzap_run(&[TEST_QASM, "-o", output.to_str().unwrap(), "-O1", "--expr"]);
+    assert_success(&out, "-O1 --expr");
     read_valid_qasm(&output);
 }
 

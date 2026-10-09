@@ -362,12 +362,12 @@ pub(crate) fn classify_quarter_pi(theta: f64) -> Option<u8> {
     }
 }
 
-fn angle_is_zero(angle: f64) -> bool {
+pub(crate) fn angle_is_zero(angle: f64) -> bool {
     let n = angle.rem_euclid(2.0 * PI);
     n < 1e-6 || (2.0 * PI - n) < 1e-6
 }
 
-fn emit_rotation(output: &mut Circuit, q: Qubit, int_part: u8, float_part: f64) {
+pub(crate) fn emit_rotation(output: &mut Circuit, q: Qubit, int_part: u8, float_part: f64) {
     if float_part == 0.0 {
         emit_int(output, q, int_part);
     } else {
